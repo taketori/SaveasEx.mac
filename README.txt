@@ -133,7 +133,7 @@ http://github.com/taketori/SaveasEx.mac/downloads
  　メールや掲示板でお問い合わせの際は、本マクロについてであることがわかるように、題名にマクロ名を併記してください。
 
  ・メール
-   src＠x10d.jp (@を半角に変更してから送信してください。)
+   src＠x10d.jp (＠を半角に変更してから送信してください。)
 
  ・掲示板: コミュニテックス「4. 公開マクロ サポート会議室（秀丸エディタ関連）」
    http://www.maruo.co.jp/turukame/4/index.html
@@ -145,7 +145,7 @@ http://github.com/taketori/SaveasEx.mac/downloads
 6-2. それ以外の内容で作者に連絡を取りたい場合は、以下の方法で。
 
  ・メール
-   taketori＠x10d.jp (@を半角に変更してから送信してください。)
+   taketori＠x10d.jp (＠を半角に変更してから送信してください。)
 
 
 7. 謝辞、免責、ライセンス

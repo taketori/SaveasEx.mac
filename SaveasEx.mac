@@ -1,0 +1,681 @@
+// SaveasEx.mac
+// copyright (C) taketori <taketori at x10d.jp>
+// 秀丸(Ver.8.00以上)、hmjre.dllがインストール、動作、パスが通っている環境が必要です。
+
+//////// what is this macro: /////////
+$mn = "--「名前を付けて保存」拡張マクロ --";
+//"ファイル先頭の文字列をファイル名として、ファイル保存。
+//要するに、行頭からコメント行になっている行にある文字列のうち、ファイル先頭に最も近い「ファイルと思わしき文字列」をファイル名として保存する。さらに...
+//カラーマーカーがあり、それが「ファイルと思わしき場所」と同じカラー表示のときは、その文字列をファイル名として用いる。
+//そういった文字列がないときは、ファイル先頭の文字列を利用する。
+//それらの行のうち、shebang行を無視する。
+//ピリオド、スラッシュ、バックスラッシュを無視しないので、現フォルダからの相対位置で保存できる。
+//mount情報が使える。チルダでマイドキュメントとか。事前の準備が必要。
+//保存前に問い合わせてくれる。保存せずにファイル名を変更するだけということもできる。
+//名前をつけた後に、それらの文字列を削除することができる。フォルダ名だけ削除とか、相対指定の場合は削除しないとか。
+//現在の文字・改行コードで保存する。";
+///////////////////////////////////
+
+///////////////////設定ここから
+
+//// ファイル名風文字列を探す行数。
+//// ファイル先頭行から何行目まで探すか。
+#search_lim = 5;
+
+//// ファイル名の変更前にその確認ダイアログを表示する条件。
+//// なお、文字列中にスラッシュや(相対指定の意味の)ピリオドが含まれている場合、WSHの起動に失敗すると、動作は不定になります。(ファイルやディレクトリの存在有無の判定が怪しくなります)
+//// 0x000=確認しない。0x001=スラッシュ・相対パスを、バックスラッシュ・絶対パスに変換したとき。0x002=mount.infoの情報を利用しようとしたとき。0x004=ルートフォルダに保存するとき。
+//// 0x010=変更後のファイル名と同じファイルが存在するとき。0x020=ディレクトリが存在しないとき。0x040=現在のファイル名と異なるとき（ファイル名が同一でフォルダだけの変更は無視されます。心配な場合は0x010や0x020も設定してください。）
+//// 0x100=ダイアログを表示したら名前を変更するだけで保存しない。0x200=表示しなかった場合のみ保存せず名前を変更。0x300=常に名前の変更だけで保存しない。
+//// 「名前の変更だけで保存しない」場合は、秀丸標準の「ファイル名変更」ダイアログで"実際のファイル名も変更する"チェックをOFFにした状態と同様の動作をします。
+////TODO: 0x10000=自動起動マクロとして起動した場合、常にファイル名を変更するだけ。
+#conf_save = 0x001 | 0x004 | 0x010 | 0x020 | 0x040 | 0x100 | 0x200;
+
+//// mount情報(マクロフォルダ中にあるmount.info)を使うか。
+////  0x0: 使わない。スラッシュはバックスラッシュと同じ扱いになります。従って、「ファイル名風文字列」がスラッシュから始まる場合、そのルートフォルダからしたのと同義になります。また、先頭のチルダは個人のドキュメントフォルダになると思います（がんばって推測します）。
+////  0x1: 使う。使うようにすると、/homeとか~とか使えます。CGIを作っているときとかマイドキュメントが/homeと同一でないときとかに便利かも。
+////  0x2: cygpathを実行する。cygpathは、パスが通っている必要があります。
+////  0x3: mount.infoがなければ、0x2の動作をする。
+////  mount.infoのサンプルは、マクロ同梱のmount.info.sampleを参照してください。自動で作るには、cygwinを立ち上げてから「cd <マクロフォルダ>; echo [mount] > mount.info; mount | sed -re 's/^([^\/]+) on (\/[^ ]+) .+/\2 = \1/g' >> mount.info」みたいな感じで。
+////  cygpathを使う方法はobsolute。1)標準出力を取り込む必要がある、2)cygpathの引数に（フォルダの区切りとして）バックスラッシュ1文字を渡させない、3)ファイルにしておけばmount情報以外にも自分勝手にエイリアスなどを追加できる、などの不都合があるので。
+#use_mount = true;
+
+//// ~の代わりに使用される特殊フォルダ。
+//// 右辺値は、WSHのWshShellオブジェクトのSpecialFoldersプロパティで設定できるもののみです。
+//// mount.info中で/homeが指定されていないときにのみ、有効です。
+$tilde = "MyDocuments";
+
+////shebang行の ! 直前の記号をコメント文字として利用するか。
+//// 0x0000 = 利用しない。0x0001 = 利用する。
+//// 0x0010 = ファイルタイプ別設定が共通の時。0x0020 = 複数行コメントが自動判定の時。0x0040 = 言語がなしの時。0x0080 = 言語を指定しているまたはユーザ定義の時。
+//// 0x0100 = #! という文字列であれば #。0x0200 = 連続する半角記号中の ! は無視(HTMLなどで)。
+//// 0x0400 = 0x0020または0x0080が有効の時で、1行目(1文字目)がコメントでないとき。
+//// 0x1000 = ファイル名を変更後、shebang行であったことを確認する。
+//// 0x2000 = 対応するファイルタイプ別設定の名前が変更された時のみ。
+#shebang = 0x0001 | 0x0010 | 0x0020 | 0x0040 | 0x0100 | 0x1000 | 0x2000;
+
+//// 「ファイルと思わしき場所」をカラー表示しないとき、ファイル風文字列の検索方法。
+//// 0x0=マクロ終了（検索しない）。
+//// 0x1=$fregex・#fregoptを利用。$fregexが空白の時はマクロ終了。
+//// 0x2=[ファイルタイプ別の設定-ファイル名のカスタマイズ]の内容を利用（「自動判断」の場合は0x1と同様）。
+//// 0x3=0x2と同様。「自動判断」や見つからなかったら0x1と同様。
+#search_fn = 0x1 | 0x2;
+
+//// 「ファイル名と思わしき場所」を表す正規表現
+$fregex = "([a-z]:|\\\\|)?[^ :\|\?<>\*]+(\.[a-z]{1,4})?";
+
+//// 「ファイル名と思わしき場所」を探すときの検索オプション。
+//// 0x001=単語, 0x002=大/小文字の区別, 0x010=文字定数中のみ, 0x020=コメント定数中のみ
+#fregopt = 0x001;
+
+////TODO: ファイル名と思わしき文字列の最低文字列長。
+//// コメント行中のファイル名(のカラー表示)をのぞいて、この文字数未満であればファイル名と見なさない。
+#fn_len = 2;
+
+//// 改名前のファイル名(フルパス)とファイル名風文字列とを比較して、同義の場合は記載行全体を削除するか。
+//// 0x000=削除しない。0x001=ファイル名変更前の確認ダイアログを表示した場合は削除する。0x002=表示しなかった場合に削除する。
+//// 0xN0N=行全体を削除。0x010=比較の対象はファイル名(basename)のみ。0x020=削除はフォルダ風文字列のみ。
+//// 0x100=新規作成時は常に同義と見なす。
+#del_line = 0x001 | 0x002 | 0x010 | 0x020 | 0x100;
+
+//// 範囲選択時の動作。
+//// BOX選択時は無視されます。ファイル名となる文字列が複数個になる場合、各文字列をファイル名とするファイルをそれぞれ作ります。
+//// 0x00F:0=選択を解除して続行。1=選択範囲をファイル名として使う。2=選択範囲のみを改名後のファイルの内容として使う(範囲外は内容に含まれません。また$sel_tmpに設定したファイルを一時ファイルとして使います)。
+//// 0x0F0:0x001が有効の時、0=範囲1行目全体を対象とする。1=範囲の2行目以降も対象にする。2=そのうちのファイル名と思わしき場所のみ。0x040=ファイル名にした部分は削除する(#del_lineの設定を利用)。8=選択範囲が2論理行以上の時に問い合わせる。
+#selecting = 0x75;
+$sel_tmp = currentmacrofilename + ".tmp";
+
+///////////////////////////////設定ここまで
+
+// 実行できない条件の時は、さっさと終了する。
+if( version < 800 ){
+	message $mn + "\n秀丸のバージョンが古いです。マクロを終了します。";
+	endmacro;
+}
+if( !#search_lim ){
+	message $mn + "\n#search_lim(ファイル名らしき文字列を検索する行数)が、設定されていないか 0 のために、検索できません。マクロを終了します。";
+	endmacro;
+}
+if( #fn_len < 2){
+	message $mn + "\n#fn_len(ファイル名と思わしき文字列の最低文字列長)が、設定されていないか 短すぎるために、続行しません。マクロを終了します。";
+	endmacro;
+}
+if( (getconfig("ColorFN") || #search_fn) == 0 ){		// ColorFN: ファイルと思わしき場所
+	message $mn + "\nファイルタイプ別設定で「ファイル名と思わしき場所のカラー表示」をしない設定のため、ファイル名を探せません。マクロを終了します。\n(中断させないためには、カラー表示するか、" + currentmacrobasename + ".init.macを編集。)";
+	endmacro;
+}
+if( #selecting & 0x00F == 0  && (rectselecting || selecting) ){
+	message $mn + "\n範囲選択されており、その状態で起動したら終了する設定になっているため、マクロを終了します。";
+	endmacro;
+}
+
+// 初期設定
+#_[0] = x;	#_[1] = y;
+$_[0] = searchbuffer;	#_[2] = searchoption;	$_[1] = getsearchhist(0);
+#_[3] = foundhilighting;	$_[2] = foundbuffer;	#_[4] = foundoption;
+#_[5] = overwrite;	#_[6] = browsemode;	#_[7] = readonly;	#_[8] = imestate;	#_[9] = freecursor;
+if( #_[5] )	overwriteswitch;
+if( #_[6] )	browsemodeswitch;
+if( #_[7] )	readonlyswitch;
+if( #_[8] )	imeswitch;
+if( #_[9] )	freecursorswitch;
+setcompatiblemode 0x0002 | 0x0008 | 0x0200;		// 0x002=折りたたみを無視ししてなるべく維持, 0x0008=部分編集を無視してなるべく維持, 0x0200=検索での表示を「範囲選択」。
+$_[3] = filename2;
+#search_lim = #search_lim * (#search_lim < linecount2) + linecount2 * (linecount2 < #search_lim);
+begingroupundo;
+escape;
+forceinselect 1;
+disabledraw;
+
+main:
+	// 下記 * ～ * までの説明 //
+	//1&&!0^(0&&0) = 1 : 1&&1^0 = 1&&1
+	//1&&!0^(0&&1) = 1 : 1&&1^0 = 1&&1
+	//1&&!1^(1&&0) = 0 : 1&&0^0 = 1&&0
+	//1&&!1^(1&&1) = 1 : 1&&0^1 = 1&&1
+
+	//範囲選択時、選択範囲の1行目をファイル名にして終了。
+	if(selecting)	call use_sel;
+	if($$return != "")	call change_fn $$return;		//==>
+	escape;
+
+	// カラーマーカーがあれば、それをファイル名にして終了。
+////TODO:引数付きで起動されたとき、第1引数をファイル名にする。第2引数以降は、同じ名前の変数に格納。
+	##cmarker = false;
+	call search_cmarker;
+	if(##return)
+		call change_fn gettext(seltopx, seltopy, selendx, selendy, true);		//==>
+
+	gofiletop;
+
+	// shebang行の ! 前の記号を探す。
+	$$shb = "";
+	//.git: どんなときでもshenbangを探すようにした。shebangを使わないときでも、shebang行を無視させるため。
+	call search_shebang;
+	if($$return != ""){
+		movetolineno 1, 2;		// ** shebangを無視するため、論理行2行目の先頭へ。
+	}
+	##cc = getconfig("ColorComment");
+	if( #shebang & 0x0001
+	&& 2 <= #search_lim
+	&& ( #shebang & 0x0010 && currentconfigset == ""
+		|| #shebang & 0x0040 && ##cc == 24
+		//*
+		|| (#shebang & 0x0020 && ##cc == 0)
+			&& (#shebang & 0x0400 == 0)
+				^ (#shebang & 0x0400 != 0 && colorcode & 0x1F == 0x03)
+		|| (#shebang & 0x0080 && 0 < ##cc && ##cc != 24)
+			&& (#shebang & 0x0400 == 0)
+				^ (#shebang & 0x0400 != 0 && colorcode & 0x1F == 0x03)
+		//*
+	) ){
+		$$shb = $$return;
+	}
+	// 現在の行(ファイル先頭行かshebangの次行)の文字。linelen2じゃないけど、実用的には問題ないと思う。
+	$$this_line = gettext2(0, lineno, linelen, lineno);
+
+	// ファイル名と思われる文字列を取得する。
+	if( getconfig("ColorFN") ){
+		call point_cur_at_fnstr 0x00, $$shb;
+		##cursor = ##return;
+		call get_fn;
+	}else{
+		call search_fnreg;
+	}
+
+	// 何も見つからなかったとき、shebang行以外でファイル先頭に近い行全体をファイル名と見なす。
+	if( $$return == "" ){
+		call locate_fn_in_str $$this_line;
+		if( $$return == "" ){
+			// ファイル名と思われる文字列が存在しない場合。秀丸の名前をつけて保存を利用する。
+			title $mn + "ファイル名と思われる文字列が存在しないっぽい。";
+			SAVEAS;
+			call end_macro;
+		}
+		searchdown $$return;		// del_lineが、範囲選択されていることを前提に作られているので、ここで検索=範囲選択。
+	}
+	$$fnstr = $$return;
+
+	change_fn:
+	// ファイル名を変更する実際の処理。
+
+	if($$1 != "")	$$fnstr = $$1;
+	$$ccs = currentconfigset;
+	##fso = createobject("Scripting.FileSystemObject");
+	call get_fbase $$fnstr, ##fso;
+	$$fbase = $$return;
+	call set_save_dir $$fnstr, $$fbase, ##fso;
+	$$save_dir = leftstr($$return, strstr($$return, "*"));
+	##disp_conf = val(midstr($$return, strstr($$return, "*") + 1, ));  // 保存の確認ダイアログを表示したか。
+	call del_line $$save_dir, $$fbase, ##disp_conf;
+	escape;
+	call saveas_fn $$save_dir, $$fbase, ##fso, ##disp_conf;
+	if( ##cursor & 0x20 ){
+		call was_shebanged $$shb, $$ccs;
+		if( !##return ){		// shebangではなかった。
+			changename $_[3];
+		}
+	}
+
+	call end_macro;
+
+endmacro;
+
+search_cmarker:
+// カラーマーカーを探す。
+//arg: --
+//ret: #適切なカラーマーカーが見つかったか。
+//note: ##retがtrueの時、カラーマーカー部分を範囲選択している。カーソルはその末尾。
+
+	return;
+	##ret = false;
+	nextcolormarker 0x01;
+	if( result && getcolormarker(0x01 | 0x02 | 0x04 | 0x10) == getconfigcolor(,)){
+		beginsel;
+		nextcolormarker 0x02;
+		if(seltoplineno == selendlineno && seltopcolumn + #fn_len < selendcolumn){
+			##ret = true;
+		}else{
+			escape;
+			call search_cmarker;
+			##ret = ##return;
+		}
+	}
+
+return ##ret;
+
+use_sel:
+// 範囲選択しているときの処理。
+// この関数を実行するときは、「selecting && #selecting & 0x003」が真。
+//arg: --
+//ret: 選択範囲の1行目のうち、ファイル名として使える文字列
+
+	question $mn + "\n範囲選択されています。選択範囲の1行目をファイル名と見なし、「名前をつけて保存」します。";
+	if(!result)	return;
+	call locate_fn_in_str gettext(seltopx, seltopy, selendx, selendy, true);
+
+return $$return;
+
+search_shebang:
+// shebang行を探して、見つかれば ! の直前の文字列を返す。
+//arg:
+//ret: $ ! の直前の文字列。
+//.git: shebangが見つかっても、search_shebangではカーソルを移動させないようにした。メインの方で移動してもらう。
+//.git: カーソルを動かすのではなく、最初の1行を変数に代入しその変数を評価するようにした。1行目かどうかの判定を減らすためと、カーソルを1行目に動かす必要がないため。併せて、1行目の文字数、およびshebangの長さをチェックするようにした。
+
+	$$l1 = gettext2(0, 1, linelen2, 1);
+
+	if(strlen($$l1) <= 2){
+		return "";
+	}
+
+	// #! の検索。
+	if( #shebang & 0x0100 && leftstr($$l1, 2) == "#!"){
+		return "#";
+	}
+
+	// ! の検索。
+	$$ret = "";
+	##pos = 0;
+	##c = unicode(wcsmidstr($$l1, ##pos, 1));
+	while( '!' < ##c && ##c <= '/'
+		||	':' <= ##c && ##c <= '@'
+		||	'[' <= ##c && ##c <= '`'
+		||	'{' <= ##c && ##c <= '~' )
+	{
+		if( wcsmidstr($$l1, ##pos + 1, 1) == "!" ){
+			$$ret = leftstr($$l1, ##pos + 1);
+			##pos = ##pos + 1;
+			if( #shebang & 0x0200 == 0 || ##pos == wcslen($$l1) ){
+				break;
+			}
+		}
+		##pos = ##pos + 1;
+		##c = unicode(wcsmidstr($$l1, ##pos, 1));
+	}
+
+	// !の直後に半角記号が存在しないことを確認する。
+	if( ##pos <= strlen($$ret) + 1 && 2 <= ##pos ){
+		return $$ret;
+	}
+
+return "";
+
+point_cur_at_fnstr:
+// 一番最初の、shebangの！の前の文字で始まっている行orコメント行まで、カーソルを移動する。
+// [ファイルタイプ別の設定-デザイン-複数行コメント]が「なし」の時やその行がすでにコメント行の時は、その行にとどまりカーソルがファイル名と思わしき文字列になるまで、その行でカーソルを右に移動する。その行にない場合、下に移動できるなら移動し、point_cur_at_fnstrを再帰する。
+//spec: 行の途中でコメント部分から外れ、そこにファイル名があるような場合でも、それを対象としてしまう。
+//spec: ファイル名のカラー表示のカスタマイズで、「コメント中のみ」がチェックされていない場合も、コメント中から探す。
+	//ファイルに使えない文字   *?"<>|\/:
+//arg:#強制的にコメント以外からも探すか, $コメント開始文字列(shebangの!の前の記号)
+//ret:0x00=コメント行から検索
+//		0x10=コメント行以外から検索
+//		0x20=shebangの！の前の文字で始まっている行から検索
+//		0x00=ファイルと思わしき場所の先頭にカーソル。
+//		0x01=探査した最終行の行末orEOFの直前にカーソル。
+
+	##i = ##1;
+	$$s = $$2;
+	golinetop2;
+
+	// shebangの！の前の文字で始まっている行になるまで、カーソルを次行に移動する。
+	if( $$s != "" ){
+		##i = 0x20;
+		while( lineno < #search_lim
+			&& gettext2(0, lineno, ((strlen($$s) < linelen2) * strlen($$s) + (linelen2 < strlen($$s)) * linelen2), lineno) != $$s )		//linelen2と$$sとの長さを比較して短い方まで文字列を取得する。
+		{
+			moveto2 0, lineno + 1;
+		}
+		right strlen($$s);		//whileでトラップされているから、linelen2<strlen($$s)はない。
+	}
+
+	// コメント行の中を検索(コメント行になるまで、カーソルを次行に移動する)。
+	else if(!##i){
+		while( lineno < #search_lim
+			&& colorcode & 0x1F != 0x03 )		//コメント部分 じゃない。
+		{
+			moveto2 0, lineno + 1;
+		}
+	}
+
+	// カーソルがファイル名と思わしき場所or行端になるまで、カーソルを右に移動する。
+	// コメント行じゃなかったとしても、1文字も動かないので、問題なし。
+	while(colorcode & 0x1F != 0x15 && column < linelen2)
+	{
+		right;
+	}
+
+	// カーソルの後ろの状態を返す。
+	if( colorcode & 0x1F == 0x15 )		//ファイル名と思わしき場所 の先頭
+		return ##i | 0x00;
+	if(#search_lim <= lineno || code == eof){		//改行記号で検索範囲最後orEOF上
+		question $mn + "\n" + "ファイル名らしきものが、見つからなかった。(´д`)\n先頭に戻って、"
+		+ leftstr("コメント行", ($$s != "") * 10)
+		+ leftstr("コメント行以外", (!##i) * 14)
+		+ "から探す？";
+		if( result && $$s != "" ){
+			$$s = "";
+			##i = 0x00;
+		}else if( result && (!##i) ){
+			##i = 0x10;
+		}else{
+			return ##i | 0x01;
+		}
+		gofiletop;
+	}else{		//改行記号
+		moveto2 0, lineno + 1;
+	}
+	call point_cur_at_fnstr ##i, $$s;
+
+return ##return;
+
+get_fn:
+// ファイル名と思わしき文字列を取得する。
+//arg:
+//ret: $ファイル名と思わしき文字列
+//cursor: ファイル名風文字列の末尾
+
+	##fn_c1 = column;
+
+	beginsel;
+	while( colorcode & 0x1F == 0x15 )		// ファイル名と思わしき場所。
+		right;
+
+	##fn_c2 = column;
+
+	$$fn = gettext2( ##fn_c1, lineno, ##fn_c2, lineno, true );
+
+return $$fn;
+
+search_fnreg:
+//ファイル名と思われる文字列を正規表現で検索する。
+//arg:
+//ret: $ファイル名と思わしき文字列
+//note: CustomEUF(Email,URL,ファイル名のカスタマイズ)=
+//		0x00N00 ファイル名、0x000N0 URL、0x0000N Email
+//		0x00100 RegEx、0x00200 大/小、0x00300 RegEx+大/小、0x00400 単語じゃない、
+//		0x01000 文字定数中のみ, 0x02000 コメント定数中のみ
+
+	##s_opt = getconfig("CustomEUF");
+	if( #search_fn & 0x2 && ##s_opt & 0x00100 ){
+		// [ファイルタイプ別の設定-ファイル名のカスタマイズ]を利用（「自動判断」の場合は0x1と同様）。
+		setsearch getconfig("CustomFile"),
+							(##s_opt & 0x00400 == 0) * 0x00000001						// 単語の検索
+							| (0x00200 & ##s_opt) / 0x00200 * 0x00000002		// 大文字/小文字の区別
+							| (0x00100 & ##s_opt) / 0x00100 * 0x00000010		// 正規表現
+							| (0x02000 & ##s_opt) / 0x02000 * 0x00020000		// 追加の条件（コメント）
+							| (0x01000 & ##s_opt) / 0x01000 * 0x00100000		// 追加の条件（文字列）
+							| (0x02000 & ##s_opt != 0 || 0x01000 & ##s_opt != 0) * 0x00400000		// 追加の条件（「のみ」）
+							| 0x00800000;																		// 追加の条件が有効であるかどうか
+	}
+	if( (#search_fn & 0x1) && strlen($fregex) && (##s_opt & 0x00100 == 0) ){
+		// $fregex・#fregoptを利用。$fregexが空白の時はマクロ終了。
+		setsearch $fregex,
+							(##fregopt & 0x001) * 0x00000001							// 単語の検索
+							| (0x002 & ##fregopt) / 0x002 * 0x00000002		// 大文字/小文字の区別
+							| 0x00000010																	// 正規表現
+							| (0x020 & ##fregopt) / 0x020 * 0x00020000		// 追加の条件（コメント）
+							| (0x010 & ##fregopt) / 0x010 * 0x00100000		// 追加の条件（文字列）
+							| (0x020 & ##fregopt != 0 || 0x010 & ##fregopt != 0) * 0x00400000		// 追加の条件（「のみ」）
+							| 0x00800000;																	// 追加の条件が有効であるかどうか
+	}else{
+		call end_macro;
+	}
+
+	finddown2;
+	if( result || ytolineno(1, foundtopy) <= #search_lim ){
+		return gettext(foundtopx, foundtopy, foundendx, foundendy, true);
+	}
+
+return "";
+
+locate_fn_in_str:
+// 第1引数の、ファイル名に使える文字からなる文字列(空白も含む)を探し出して、もっとも先頭のものを返す。
+//arg: $ファイル先頭行かshebangの次行の文字列。
+//ret: $ファイル名に使える文字からなると思われる文字列(空白も含む)
+
+	$$ret = "";
+	$$inapt = "\t<>*?|\"";		// ファイル名に使えない文字列
+	##b = 0; ##n = 0;
+	while( strstr($$inapt + "　 ", midstr($$1, ##b, 1)) != -1 ){
+		##b = ##b + 1;
+	}
+		while( strstr($$inapt, midstr($$1, ##b + ##n, 1)) == -1 && ##b + ##n < strlen($$1)){
+			##n = ##n + 1;
+		}
+
+	// 短すぎる場合、返値を""となるようにする。
+	if(##n < #fn_len)
+		##n = 0;
+
+return midstr($$1, ##b, ##n);
+
+get_fbase:
+// ベース名になると思われる文字列を返す。ベース名とは、秀丸でいう「ファイル名の、パスを含まない、ベース名」。
+//arg: $ファイルパス名と思われる文字列, #FileSystemObject
+//ret: $ベース名になると思われる文字列
+//.git: ベース名となる文字列の取得に、WSHも使えるようにした。
+//.git: ベース名となる文字列の取得を、別関数で行うようにした。。
+
+	$$ret = $$1;
+	##fb = -1;
+	if(##2){
+		$$ret = callmethod_returnstr(##2, "GetFileName", $$1);
+	}else{
+		##fb = strrstr($$1, "/");
+		if( ##fb < strrstr($$1, "\\") )
+			##fb = strrstr($$1, "\\");
+		if( -1 < ##fb )
+			$$ret = midstr( $$1, ##fb + 1, );
+	}
+	if($$ret == "")
+		$$ret = input($mn + "\nファイル名を入力してください。\n(フォルダ名は入力しないで)", basename2);
+	if($$ret == "")
+		call end_macro;
+
+return $$ret;
+
+saveas_fn:
+// 実際にフォルダを作って、そこに保存する(ようにファイル名を変える)。
+//arg: $保存フォルダ, $ベース名, #FileSystemObject, #保存の確認ダイアログを表示したか
+//ret: --
+
+	//.git: WSHでフォルダを作る。
+	if( ##3 && callmethod_returnnum(##3, "FolderExists", $$1) == false ){
+		callmethod ##3, "CreateFolder", $$1;
+		if(!result){
+			question $mn + "\nWSHを使ってフォルダを作るのに失敗した。\nはい : DOSで作る。いいえ : マクロ終了";
+			if(!result){
+				call end_macro;
+			}
+		}
+	}
+	if( !existfile( $$1, 0x10 ) )		//Note: スラッシュを含む場合、常に真（存在しないことになる）。
+		run getenv("COMSPEC") + " /C mkdir \"" + $$1 + "\" > " + currentmacrofilename + ".log";
+
+	// 0x100=ダイアログを表示したら名前を変更。0x200=表示しなかったら名前を変更。
+	if( (#conf_save & 0x100 && ##4) || (#conf_save & 0x200 && ##4 == false) )
+		changename $$1 + $$2;
+	else
+		saveas $$1 + $$2;
+
+return;
+
+set_save_dir:
+//.git: set_save_dir関数を新設。saveas_fnの下請け。
+// ファイルを保存するフォルダを決定する。ファイル名(フルパス)と思われる文字列のうち、スラッシュで始まる文字列やチルダを適切なフォルダ名に変更したり、パスの相対指定を絶対指定にする。フォルダの確認もする。
+//arg: $ファイル名(フルパス)と思われる文字列, $ファイル名(フルパス)と思われる文字列のベースネームと思われる文字列, #FileSystemObject
+//ret: $$1のフォルダ名を適切に変更した文字列*保存の確認ダイアログを表示したか
+
+	$$fbase = $$2;
+	//.git: 「拡張子になると思われる文字列を取得する」を使う見込みがなかったから、廃止。
+
+	// フォルダ名をWindows式フォルダに変換する。
+	$$return = "";
+	$$save_dir = leftstr( $$1, strlen($$1) - strlen($$fbase) );
+	if( $$save_dir == "" )
+		$$save_dir = directory2 + "\\";
+	else{
+		//.git: WSHの使用に伴い、$$save_dirがスラッシュやチルダで始まっていなくてもto_win関数を実行するようにした。
+		call to_win $$save_dir, ##3;
+		$$save_dir = leftstr($$return, strstr($$return, "*"));
+		##to_win_ret = val(midstr($$return, strstr($$return, "*") + 1, ));
+	}
+
+	// 確認ダイアログを表示して、再入力を促す。
+	##disp_conf = false;
+	if( (#conf_save & 0x001 && ##to_win_ret & 0x001)
+		|| (#conf_save & 0x002 && ##to_win_ret & 0x002)
+		|| (#conf_save & 0x004 && leftstr( $$save_dir, 1 ) == "\\" )
+		|| (#conf_save & 0x010 && existfile($$save_dir + $$fbase) )
+		|| (#conf_save & 0x020 && existfile($$save_dir, 0x10) == false )
+		|| (#conf_save & 0x040 && $$fbase != basename && $$fbase != basename2 && $$fbase != basename3)
+	){
+		$$save_dir = input("以下のフォルダに「"+ $$fbase +"」として保存します。\n（文字列頭の\\はルートフォルダと同義です。）", $$save_dir );
+		if( result == false || $$save_dir == "" )
+			call end_macro;
+		##disp_conf = true;
+	}
+
+return $$save_dir + "*" + str(##disp_conf);
+
+to_win:
+// フォルダ名をWindows式フォルダに変換する。
+//arg: $ファイル名と思われる文字列, #FileSystemObject
+//ret: $ret($$1のフォルダ名を適切に変更した文字列)*#conf_saveで判定に使うための数値
+//PLAN: returnに配列など複数の項目が渡せるようになったら、それを使う。
+
+	$$ret = "";
+	##retnum = 0;
+	$$left = leftstr($$1, 1);
+
+	// mount.info情報を利用して、置換する。
+	if(#use_mount & 0x1){
+		$$mount_info = macrodir + "\\mount.info";
+		if( existfile($$mount_info) ){		// mount.infoがあるとき。
+			##retnum = 0x002;
+			if( $$left == "~" && getinistr( $$mount_info, "mount", "/home" ) != "" ){
+				// チルダを置換。
+				$$ret = getinistr( $$mount_info, "mount", "/home" ) + midstr( $$1, 1, );
+			}else if( $$left == "/" ){
+				// 先頭がスラッシュの時、それに続く一連の文字列をmount.infoから検索。
+				if( getinistr( $$mount_info, "mount", "/" ) != "" ){
+					$$str = "0 " + getinistr( $$mount_info, "mount", "/" );
+				}
+				##m = 1;
+				$$c = midstr($$1, ##m, 1);
+				while( $$c != "\\" && ##m < strlen($$1) ){
+					while( $$c != "\\" && $$c != "/" && ##m < strlen($$1) ){
+						$$c = midstr($$1, ##m, 1);
+						##m = ##m + 1;
+					}
+					$$str = "";
+					if( getinistr($$mount_info, "mount", leftstr($$1, ##m - 1)) != "" )
+						$$str = str(##m - 1) + " " + getinistr($$mount_info, "mount", leftstr($$1, ##m - 1));
+					##m = ##m + 1;
+				}
+				$$ret = midstr($$str, strstr($$str, " ") + 1, )
+							+ midstr($$1, val(leftstr($$str, strstr($$str, " "))) + (rightstr($$str, 1) == "\\"), );
+			}
+		}
+	}
+
+	//TODO: cygpathを利用して変換する。
+	if(#use_mount & 0x2){
+		//レジストリからcygwinのインストールフォルダを検索。
+		//WSHを呼び出してから、cygpathを呼び出す。
+		//標準出力を取り込む。
+	}
+
+	// 先頭のチルダを変換した後、相対パスやスラッシュを絶対パスに変換する。。
+	if($$ret == ""){		// mount.infoを使わないorなかったor先頭がチルダでもスラッシュでもないorチルダだけどmount.infoから引けないorスラッシュだけど引けない。
+		if($$left == "~"){
+			//.git: 1文字目が~の時、$tildeで指定されたフォルダに置換する。
+			$$ret = member( getpropobj( createobject("WScript.Shell"), "SpecialFolders" ),
+											"Item", $tilde )
+							+ midstr( $$1, 1, );
+		}else{
+			$$ret = $$1;
+		}
+	}
+
+	// Windows的にきちんとしたフォルダ名に戻す。
+	if(##2){
+		//.git: WSHで、きちんとしたフォルダ名に戻す。フォルダの相対指定はもちろん、バックスラッシュの代わりにスラッシュを使えるようになった。
+		##retnum = ##retnum | 0x001 * ($$ret != callmethod_returnstr(##2, "GetAbsolutePathName", $$ret));
+		$$ret = callmethod_returnstr(##2, "GetAbsolutePathName", $$ret) + "\\";
+	}else{
+		message "WSHが使えません。";
+		call end_macro;
+		//PLAN: WSHが使えないときの、スラッシュ・相対パスの変換アルゴリズム。
+		//$$ret = "\\" + midstr( $$1, 1, strlen($$1) );
+	}
+
+return $$ret + "*" + str(##retnum);
+
+del_line:
+// 改名前のフルパスとファイル名風文字列とを比較して、同義の場合は当該部分を削除する
+//arg: $保存しようとするディレクトリ名, $ファイルベース名, #確認ダイアログを表示した
+//// 0x000=削除しない。0x001=確認ダイアログを表示。0x002=表示しなかった。0x010=ファイル名(basename)のみ。0x020=削除はファイル名以外。0x100=新規作成時は常に同義と見なす。
+//ret: 変更(削除を含む)したかどうか。
+
+	if( ((#del_line & 0x001 && ##3) || (#del_line & 0x002 && (!##3)))
+		&& ( filename2 == $$1 + $$2
+			|| #del_line & 0x010 && basename2 == $$2
+			|| #del_line & 0x100 && filetype == "new" )
+	){
+		if(#del_line & 0x020)
+			insert $$2;
+		else
+			deleteline2;
+		return 1;
+	}
+
+return 0;
+
+was_shebanged:
+//ファイル名を変更後、1行目がshebang行である( ! の直前にスペースを挿入しスペースがコメント部分のまま、さらにその直前にも挿入しコメント部分でなくなる)かを確認する。
+////! ←といった場合もshebangでなかったと判定される。
+//arg: $ shebangの ! の前の文字列, $ファイル名変更前に適応されていた「設定のリスト」の名前
+//ret: 判定結果(0=shebangでなかった。1=shebangであった。2=shebangかどうか不明)。
+
+	##ret = 2;
+	if( (#shebang & 0x1000 && $$1 != "")
+	&&	(#shebang & 0x2000 == 0)
+	^		(#shebang & 0x2000 != 0 && $$2 != currentconfigset) )
+	{
+		// ! の直前にスペースを挿入。
+		moveto2 strlen($$1), 1;
+		insert " ";		//挿入する文字は何でもいいと思うけど、スペースだったら確実か。
+		if( colorcode & 0x1F == 0x03 ){
+			moveto2 strlen($$1) - 1, 1;
+			insertfix " ";		//挿入する文字は何でもいいと思うけど、スペースだったら確実か。
+			if( colorcode & 0x1F != 0x03 )
+				##ret = 1;
+			else
+				##ret = 0;
+			undo 1;
+		}else
+			##ret = 0;
+		undo 1;
+
+	}
+
+return ##ret;
+
+end_macro:
+
+	//TODO: WSH解放
+
+	escape;
+	moveto #_[0], #_[1];
+
+	if( #_[5] )	overwriteswitch;
+	if( #_[6] )	browsemodeswitch;
+	if( #_[7] )	readonlyswitch;
+	if( #_[8] )	imeswitch;
+	if( #_[9] )	freecursorswitch;
+
+	endgroupundo;
+
+endmacro;

@@ -421,7 +421,7 @@ saveas_fn:
 			}
 		}
 	}
-	if( !existfile( $$1, 0x10 ) )		//Note: スラッシュを含む場合、常に真（存在しないことになる）。
+	if( !existfile(leftstr($$1, strlen($$1) - (rightstr($$1, 1) == "\\")), 0x10) )		//Note: スラッシュを含む場合、常に真（存在しないことになる）。
 		run getenv("COMSPEC") + " /C mkdir \"" + $$1 + "\" > " + currentmacrofilename + ".log";
 
 	// 0x100=ダイアログを表示したら名前を変更。0x200=表示しなかったら名前を変更。
@@ -459,7 +459,7 @@ set_save_dir:
 		|| (#conf_save & 0x002 && ##to_win_ret & 0x002)
 		|| (#conf_save & 0x004 && leftstr( $$save_dir, 1 ) == "\\" )
 		|| (#conf_save & 0x010 && existfile($$save_dir + $$fbase) )
-		|| (#conf_save & 0x020 && existfile($$save_dir, 0x10) == false )
+		|| (#conf_save & 0x020 && existfile(leftstr($$save_dir, strlen($$save_dir) - (rightstr($$save_dir, 1) == "\\")), 0x10) == false )
 		|| (#conf_save & 0x040 && $$fbase != basename && $$fbase != basename2 && $$fbase != basename3)
 	){
 		$$save_dir = input("以下のフォルダに「"+ $$fbase +"」として保存します。\n（文字列頭の\\はルートフォルダと同義です。）", $$save_dir );

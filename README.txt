@@ -105,6 +105,7 @@ http://github.com/taketori/SaveasEx.mac/downloads
  README.txt :              「README」。このファイルです。
  SaveasEx.mac.txt :        「マニュアル」。使い方や設定方法を記載しています。
  SaveasEx.mac.history.txt :「改版履歴」
+ mount.info.sample :       「mount.infoサンプル」
 
 
 4. 必要なもの

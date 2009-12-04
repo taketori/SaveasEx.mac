@@ -1,5 +1,5 @@
 // SaveasEx.mac
-$mn = "「名前を付けて保存」拡張マクロ - ";
+$mn = "「名前を付けて保存」をちょっと便利に - ";
 // copyright (C) taketori <taketori at x10d.jp>
 // 動作環境は、秀丸(Ver.8.00以上)・COMがインストール・読み出し・実行ができ、編集中ファイルの読み出し・実行、および保存先のフォルダにて読み出し・書き込みができる 環境。
 // 設定によっては、本マクロと同じフォルダにて、ファイルを作成・書き込みできること。
@@ -88,11 +88,11 @@ main:
 	if( #shebang & 0x0001
 	&& 2 <= #search_lim
 	&& ( #shebang & 0x0010 && currentconfigset == ""
-		|| #shebang & 0x0040 && ##cc == 24
+		|| #shebang & 0x0040 && ##cc == 24/*言語なし*/
 		//*
 		|| (#shebang & 0x0020 && ##cc == 0)
 			&& (#shebang & 0x0400 == 0)
-				^ (#shebang & 0x0400 != 0 && colorcode & 0x1F == 0x03)
+				^ (#shebang & 0x0400 != 0 && colorcode & 0x1F == 0x03/*コメント部分*/)
 		|| (#shebang & 0x0080 && 0 < ##cc && ##cc != 24)
 			&& (#shebang & 0x0400 == 0)
 				^ (#shebang & 0x0400 != 0 && colorcode & 0x1F == 0x03)
@@ -195,7 +195,6 @@ search_shebang:
 // shebang行を探して、見つかれば ! の直前の文字列を返す。
 //arg:
 //ret: $ ! の直前の文字列。
-//.git: shebangが見つかっても、search_shebangではカーソルを移動させないようにした。メインの方で移動してもらう。
 
 	$$l1 = gettext2(0, 1, linelen2, 1);
 
@@ -433,13 +432,11 @@ saveas_fn:
 return;
 
 set_save_dir:
-//.git: set_save_dir関数を新設。saveas_fnの下請け。
 // ファイルを保存するフォルダを決定する。ファイル名(フルパス)と思われる文字列のうち、スラッシュで始まる文字列やチルダを適切なフォルダ名に変更したり、パスの相対指定を絶対指定にする。フォルダの確認もする。
 //arg: $ファイル名(フルパス)と思われる文字列, $ファイル名(フルパス)と思われる文字列のベースネームと思われる文字列, #FileSystemObject
 //ret: $$1のフォルダ名を適切に変更した文字列*保存の確認ダイアログを表示したか
 
 	$$fbase = $$2;
-	//.git: 「拡張子になると思われる文字列を取得する」を使う見込みがなかったから、廃止。
 
 	// フォルダ名をWindows式フォルダに変換する。
 	$$return = "";
@@ -447,7 +444,6 @@ set_save_dir:
 	if( $$save_dir == "" )
 		$$save_dir = directory2 + "\\";
 	else{
-		//.git: WSHの使用に伴い、$$save_dirがスラッシュやチルダで始まっていなくてもto_win関数を実行するようにした。
 		call to_win $$save_dir, ##3;
 		$$save_dir = leftstr($$return, strstr($$return, "*"));
 		##to_win_ret = val(midstr($$return, strstr($$return, "*") + 1, ));
@@ -509,15 +505,8 @@ to_win:
 		}
 	}
 
-	//TODO: cygpathを利用して変換する。
-	if(#use_mount & 0x2){
-		//レジストリからcygwinのインストールフォルダを検索。
-		//WSHを呼び出してから、cygpathを呼び出す。
-		//標準出力を取り込む。
-	}
-
 	// 先頭のチルダを変換した後、相対パスやスラッシュを絶対パスに変換する。。
-	if($$ret == ""){		// mount.infoを使わないorなかったor先頭がチルダでもスラッシュでもないorチルダだけどmount.infoから引けないorスラッシュだけど引けない。
+	if($$ret == ""){		// mount.infoなかったor先頭がチルダでもスラッシュでもないorチルダだけどmount.infoから引けないorスラッシュだけど引けない。
 		if($$left == "~"){
 			$$ret = member( getpropobj( createobject("WScript.Shell"), "SpecialFolders" ),
 											"Item", $tilde )
@@ -532,7 +521,7 @@ to_win:
 		##retnum = ##retnum | 0x001 * ($$ret != callmethod_returnstr(##2, "GetAbsolutePathName", $$ret));
 		$$ret = callmethod_returnstr(##2, "GetAbsolutePathName", $$ret) + "\\";
 	}else{
-		message "WSHが使えません。";
+		message $mn + "\nWSHが使えません。";
 		call end_macro;
 		//PLAN: WSHが使えないときの、スラッシュ・相対パスの変換アルゴリズム。
 		//$$ret = "\\" + midstr( $$1, 1, strlen($$1) );
@@ -543,15 +532,14 @@ return $$ret + "*" + str(##retnum);
 del_line:
 // 改名前のフルパスとファイル名風文字列とを比較して、同義の場合は当該部分を削除する
 //arg: $保存しようとするディレクトリ名, $ファイルベース名, #確認ダイアログを表示した
-//// 0x000=削除しない。0x001=確認ダイアログを表示。0x002=表示しなかった。0x010=ファイル名(basename)のみ。0x020=削除はファイル名以外。0x100=新規作成時は常に同義と見なす。
 //ret: 変更(削除を含む)したかどうか。
 
 	if( ((#del_line & 0x001 && ##3) || (#del_line & 0x002 && (!##3)))
 		&& ( filename2 == $$1 + $$2
-			|| #del_line & 0x010 && basename2 == $$2
-			|| #del_line & 0x100 && filetype == "new" )
+			|| #del_line & 0x100 && filetype == "new"
+			|| #del_line & 0x200 && basename2 == $$2 )
 	){
-		if(#del_line & 0x020)
+		if(#del_line & 0x010/*フォルダのみ*/)
 			insert $$2;
 		else
 			deleteline2;

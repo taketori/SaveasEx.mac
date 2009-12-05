@@ -188,7 +188,15 @@ use_sel:
 
 	question $mn + "\n範囲選択されています。選択範囲の1行目をファイル名と見なし、「名前をつけて保存」します。";
 	if(!result)	return;
-	call locate_fn_in_str gettext(seltopx, seltopy, selendx, selendy, true);
+	if(seltoplineno == selendlineno){
+		call locate_fn_in_str gettext2(seltopcolumn, seltoplineno, selendcolumn, seltoplineno, true);
+	}else{
+		escape;
+		moveto seltopx, seltopy;
+		call locate_fn_in_str gettext2(seltopcolumn, seltoplineno, linelen2, seltoplineno);
+		beginsel;
+		golineend2;
+	}
 
 return $$return;
 

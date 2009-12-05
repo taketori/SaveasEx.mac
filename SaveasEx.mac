@@ -34,8 +34,8 @@ if( (getconfig("ColorFN") || #search_fn) == 0 ){		// ColorFN: ファイルと思わしき
 	message $mn + "\nファイルタイプ別設定で「ファイル名と思わしき場所のカラー表示」をしない設定のため、ファイル名を探せません。マクロを終了します。\n(中断させないためには、カラー表示するか、" + currentmacrobasename + ".init.macを編集。)";
 	endmacro;
 }
-if( #selecting & 0x00F == 0  && (rectselecting || selecting) ){
-	message $mn + "\n範囲選択されており、その状態で起動したら終了する設定になっているため、マクロを終了します。";
+if( rectselecting ){
+	message $mn + "\n矩形選択されているため、マクロを終了します。";
 	endmacro;
 }
 
@@ -53,7 +53,6 @@ setcompatiblemode 0x0002 | 0x0008 | 0x0200;		// 0x002=折りたたみを無視ししてなる
 $_[3] = filename2;
 #search_lim = #search_lim * (#search_lim < linecount2) + linecount2 * (linecount2 < #search_lim);
 begingroupundo;
-escape;
 forceinselect 1;
 disabledraw;
 
@@ -65,8 +64,10 @@ main:
 	//1&&!1^(1&&1) = 1 : 1&&0^1 = 1&&1
 
 	//範囲選択時、選択範囲の1行目をファイル名にして終了。
-	if(selecting)	call use_sel;
-	if($$return != "")	call change_fn $$return;		//==>
+	if(selecting){
+		call use_sel;
+		if($$return != "")	call change_fn $$return;		//==>
+	}
 	escape;
 
 	// カラーマーカーがあれば、それをファイル名にして終了。
@@ -181,7 +182,6 @@ return ##ret;
 
 use_sel:
 // 範囲選択しているときの処理。
-// この関数を実行するときは、「selecting && #selecting & 0x003」が真。
 //arg: --
 //ret: 選択範囲の1行目のうち、ファイル名として使える文字列
 

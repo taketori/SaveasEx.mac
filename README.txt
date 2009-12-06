@@ -104,7 +104,8 @@ http://github.com/taketori/SaveasEx.mac/downloads
  README.txt :              「README」。このファイルです。
  SaveasEx.mac.txt :        「マニュアル」。使い方や設定方法を記載しています。
  SaveasEx.mac.history.txt :「改版履歴」
- mount.info.sample :       「フォルダ情報を記載したファイルのサンプル」
+ mount.info.sample :       「フォルダ情報を記載したファイルのサンプル」。
+                            "mount.info"に改名してご利用ください。
 
 
 4. 必要なもの
@@ -115,7 +116,7 @@ http://github.com/taketori/SaveasEx.mac/downloads
  ・COM・秀丸エディッタ同梱のDLL・cmd.exeなどの呼び出し・実行できる権限がある。
  ・マクロ本体が存在するフォルダ及びそこに存在するファイルに対して、読み取り・実行・書き込みなどができる権限がある。
 
- ・mount.infoを、マクロ(というか秀丸エディッタ）から読み出すことができる権限がある。
+ ・「フォルダ情報を記載したファイル」を、マクロ(というか秀丸エディッタ）から読み出すことができる権限がある。
 
 
 5. インストールとバージョンアップ、アンインストール
@@ -123,6 +124,9 @@ http://github.com/taketori/SaveasEx.mac/downloads
  ・他の秀丸エディッタ用のマクロと同様です。
  　配布ファイルに含まれる全てのファイルを、同じフォルダに展開してください。
  ・「フォルダ情報を記載したファイル」を必要に応じて作ってください。
+ 　サンプルは、配布ファイル同梱のmount.info.sampleを参照してください。
+ 　自動で作るには、cygwinをインストールしてから、「echo [mount] > mount.info; mount | sed -re 's/^([^\/]+) on (\/[^ ]+) .+/\2 = \1/g' >> mount.info」みたいな感じで。
+
  ・使い方、設定方法は、同梱のマニュアル<SaveasEx.mac.txt>をご覧ください。
 
  ・バージョンアップ時の注意

@@ -107,7 +107,7 @@ main:
 
 	// ファイル名と思われる文字列を取得する。
 	if( getconfig("ColorFN") ){
-		call point_cur_at_fnstr 0x00, $$shb;
+		call point_at_fnstr 0x00, $$shb;
 		##cursor = ##return;
 		call get_fn;
 	}else{
@@ -243,71 +243,52 @@ search_shebang:
 
 return "";
 
-point_cur_at_fnstr:
+point_at_fnstr:
 // 一番最初の、shebangの！の前の文字で始まっている行orコメント行まで、カーソルを移動する。
-// [ファイルタイプ別の設定-デザイン-複数行コメント]が「なし」の時やその行がすでにコメント行の時は、その行にとどまりカーソルがファイル名と思わしき文字列になるまで、その行でカーソルを右に移動する。その行にない場合、下に移動できるなら移動し、point_cur_at_fnstrを再帰する。
 //spec: 行の途中でコメント部分から外れ、そこにファイル名があるような場合でも、それを対象としてしまう。
 //spec: ファイル名のカラー表示のカスタマイズで、「コメント中のみ」がチェックされていない場合も、コメント中から探す。
 	//ファイルに使えない文字   *?"<>|\/:
-//arg:#強制的にコメント以外からも探すか, $コメント開始文字列(shebangの!の前の記号)
-//ret:0x00=コメント行から検索
-//		0x10=コメント行以外から検索
-//		0x20=shebangの！の前の文字で始まっている行から検索
-//		0x00=ファイルと思わしき場所の先頭にカーソル。
-//		0x01=探査した最終行の行末orEOFの直前にカーソル。
-
+//arg:#コメント以外からも探すか, $コメント開始文字列(shebangの!の前の記号)
+//ret:0x0F:0=コメント行から検索。1=コメント行以外から検索。2=shebangの！の前の文字で始まっている行から検索
+//		0xF0:0=ファイルと思わしき場所の先頭にカーソル。1=探査した最終行の行末orEOFの直前にカーソル。2=指定した範囲になかった
 	##i = ##1;
 	$$s = $$2;
 	golinetop2;
 
-	// shebangの！の前の文字で始まっている行になるまで、カーソルを次行に移動する。
-	if( $$s != "" ){
-		##i = 0x20;
-		while( lineno < #search_lim
-			&& gettext2(0, lineno, ((strlen($$s) < linelen2) * strlen($$s) + (linelen2 < strlen($$s)) * linelen2), lineno) != $$s )		//linelen2と$$sとの長さを比較して短い方まで文字列を取得する。
-		{
-			moveto2 0, lineno + 1;
-		}
-		right strlen($$s);		//whileでトラップされているから、linelen2<strlen($$s)はない。
+	if($$s != ""){		// "shebangの ! の前の文字(列)"から始まる行の中から探す。
+		##i = 0x02;
+		searchdown2 $$s;		/*$$sに正規表現として別の意味を持つ文字がくる可能性があるので、"regular"オプションはつけない。*/
+	}else if(##i & 0xF == 0){		// コメント行だけから探す
+		##i = 0x01;
+		searchdown2 "^.", regular, maskonly, maskcomment;
 	}
-
-	// コメント行の中を検索(コメント行になるまで、カーソルを次行に移動する)。
-	else if(!##i){
-		while( lineno < #search_lim
-			&& colorcode & 0x1F != 0x03 )		//コメント部分 じゃない。
-		{
-			moveto2 0, lineno + 1;
+	if(result == false || (result && column == 0 && lineno < #search_lim)){
+		while(colorcode & 0x1F != 0x15/*ファイル名部分*/ && column < linelen2){
+			right;
 		}
 	}
 
-	// カーソルがファイル名と思わしき場所or行端になるまで、カーソルを右に移動する。
-	// コメント行じゃなかったとしても、1文字も動かないので、問題なし。
-	while(colorcode & 0x1F != 0x15 && column < linelen2)
-	{
-		right;
-	}
-
-	// カーソルの後ろの状態を返す。
-	if( colorcode & 0x1F == 0x15 )		//ファイル名と思わしき場所 の先頭
-		return ##i | 0x00;
+	if( colorcode & 0x1F == 0x15/*ファイル名部分*/ )
+		return 0x00 | ##i;
 	if(#search_lim <= lineno || code == eof){		//改行記号で検索範囲最後orEOF上
-		question $mn + "\n" + "ファイル名らしきものが、見つからなかった。(´д`)\n先頭に戻って、"
+		question $mn + "\nファイル名らしきものが、見つからなかった。(´д`)\n先頭に戻って、"
 		+ leftstr("コメント行", ($$s != "") * 10)
-		+ leftstr("コメント行以外", (!##i) * 14)
+		+ leftstr("コメント行以外", (##i & 0xF == 0) * 14)
 		+ "から探す？";
-		if( result && $$s != "" ){
+		if( result && $$s != "" ){		// コメント行から探す。
 			$$s = "";
-			##i = 0x00;
-		}else if( result && (!##i) ){
-			##i = 0x10;
+			##i = 0x0;
+		}else if( result && (##i & 0xF == 0) ){		// コメント行以外から探す。
+			##i = 0x1;
 		}else{
-			return ##i | 0x01;
+			return ##i | 0x20;
 		}
 		gofiletop;
 	}else{		//改行記号
 		moveto2 0, lineno + 1;
 	}
-	call point_cur_at_fnstr ##i, $$s;
+
+	call point_at_fnstr ##i, $$s;
 
 return ##return;
 

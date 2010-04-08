@@ -524,10 +524,10 @@ del_line:
 //arg: $保存しようとするディレクトリ名, $ファイルベース名, #確認ダイアログを表示した
 //ret: 変更(削除を含む)したかどうか。
 
-	if( ((#del_line & 0x001 && ##3) || (#del_line & 0x002 && (!##3)))
-		&& ( filename2 == $$1 + $$2
-			|| #del_line & 0x100 && filetype == "new"
-			|| #del_line & 0x200 && basename2 == $$2 )
+	if(((#del_line & 0x001 && ##3) || (#del_line & 0x002 && (!##3)))
+	&& ( filename2 == $$1 + $$2
+		|| (#del_line & 0x100 && filetype == "new")
+		|| (#del_line & 0x200 && basename2 == $$2 ))
 	){
 		if(#del_line & 0x010/*フォルダのみ*/)
 			insert $$2;

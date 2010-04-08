@@ -70,6 +70,7 @@ main:
 		if($$return != "")	call change_fn $$return;		//==>
 	}
 	escape;
+	gofiletop;
 
 	// カラーマーカーがあれば、それをファイル名にして終了。
 ////TODO:引数付きで起動されたとき、第1引数をファイル名にする。第2引数以降は、同じ名前の変数に格納。
@@ -77,8 +78,6 @@ main:
 	call search_cmarker;
 	if(##return)
 		call change_fn gettext(seltopx, seltopy, selendx, selendy, true);		//==>
-
-	gofiletop;
 
 	// shebang行の ! 前の記号を探す。
 	$$shb = "";
@@ -158,25 +157,25 @@ search_cmarker:
 //ret: #適切なカラーマーカーが見つかったか。
 //note: ##retがtrueの時、カラーマーカー部分を範囲選択している。カーソルはその末尾。
 
-	return;
 	##ret = false;
 	nextcolormarker 0x01;
-	if( result
-	&& (getcolormarker(0x01) == hex(getconfigcolor(21/*ファイル名部分*/, 0/*文字色*/))
-		|| "0xFFFFFFFF"        == hex(getconfigcolor(21/*ファイル名部分*/, 0/*文字色*/)))
-	&& (getcolormarker(0x02) == hex(getconfigcolor(21/*ファイル名部分*/, 1/*背景色*/))
-		|| "0xFFFFFFFF"        == hex(getconfigcolor(21/*ファイル名部分*/, 1/*背景色*/)))
-	&& (getcolormarker(0x04) == hex(getconfigcolor(21/*ファイル名部分*/, 2/*スタイル*/))
-		|| "0xFFFFFFFF"        == hex(getconfigcolor(21/*ファイル名部分*/, 2/*スタイル*/)))){
-		beginsel;
-		nextcolormarker 0x02;
-		if(seltoplineno == selendlineno && seltopcolumn + #fn_len < selendcolumn){
-			##ret = true;
-		}else{
-			escape;
-			call search_cmarker;
-			##ret = ##return;
+	while( result ){
+		if((getcolormarker(0x01) == hex(getconfigcolor(21/*ファイル名部分*/, 0/*文字色*/))
+			|| "0xFFFFFFFF"        == hex(getconfigcolor(21/*ファイル名部分*/, 0/*文字色*/)))
+		&& (getcolormarker(0x02) == hex(getconfigcolor(21/*ファイル名部分*/, 1/*背景色*/))
+			|| "0xFFFFFFFF"        == hex(getconfigcolor(21/*ファイル名部分*/, 1/*背景色*/)))
+		&& (getcolormarker(0x04) == hex(getconfigcolor(21/*ファイル名部分*/, 2/*スタイル*/))
+			|| "0xFFFFFFFF"        == hex(getconfigcolor(21/*ファイル名部分*/, 2/*スタイル*/)))){
+			beginsel;
+			nextcolormarker 0x02;
+			if(seltoplineno == selendlineno && seltopcolumn + #fn_len < selendcolumn){
+				##ret = true;
+				break;
+			}else{
+				escape;
+			}
 		}
+		nextcolormarker 0x01;
 	}
 
 return ##ret;

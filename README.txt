@@ -90,7 +90,7 @@
 2. 配布場所
 
  　以下のURLからダウンロードできます。
-http://hide.maruo.co.jp/lib/macro/dispkeyfunc.html
+http://hide.maruo.co.jp/lib/macro/SaveasEx.mac.html
  　見つからない場合は、以下のURLから「SaveasEx」などで検索してみてください。
 http://hide.maruo.co.jp/lib/macro/index.html
 

@@ -1,0 +1,111 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+
+	<title>taketori/SaveasEx.mac @ GitHub</title>
+	
+	<style type="text/css">
+		body {
+  		margin-top: 1.0em;
+  		background-color: #1429d1;
+		  font-family: "Helvetica,Arial,FreeSans";
+  		color: #ffffff;
+    }
+    #container {
+      margin: 0 auto;
+      width: 700px;
+    }
+		h1 { font-size: 3.8em; color: #ebd62e; margin-bottom: 3px; }
+		h1 .small { font-size: 0.4em; }
+		h1 a { text-decoration: none }
+		h2 { font-size: 1.5em; color: #ebd62e; }
+    h3 { text-align: center; color: #ebd62e; }
+    a { color: #ebd62e; }
+    .description { font-size: 1.2em; margin-bottom: 30px; margin-top: 30px; font-style: italic;}
+    .download { float: right; }
+		pre { background: #000; color: #fff; padding: 15px;}
+    hr { border: 0; width: 80%; border-bottom: 1px solid #aaa}
+    .footer { text-align:center; padding-top:30px; font-style: italic; }
+	</style>
+	
+</head>
+
+<body>
+  <a href="http://github.com/taketori/SaveasEx.mac"><img style="position: absolute; top: 0; right: 0; border: 0;" src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub" /></a>
+
+  <div id="container">
+
+    <div class="download">
+      <a href="http://github.com/taketori/SaveasEx.mac/zipball/master">
+        <img border="0" width="90" src="http://github.com/images/modules/download/zip.png"></a>
+      <a href="http://github.com/taketori/SaveasEx.mac/tarball/master">
+        <img border="0" width="90" src="http://github.com/images/modules/download/tar.png"></a>
+    </div>
+
+    <h1><a href="http://github.com/taketori/SaveasEx.mac">SaveasEx.mac</a>
+      <span class="small">by <a href="http://github.com/taketori">taketori</a></span></h1>
+
+    <div class="description">
+      「名前を付けて保存」をちょっと便利にしたマクロ
+    </div>
+
+    <p> 　秀丸エディッタ用のマクロです。
+ 　ファイルの最初の方に記載された、ファイル名と思わしき文字列を利用して「名前を付けて保存」します。
+ 　秀丸の「名前を付けて保存」では、ファイル名候補としてファイル1行目の文字列が表示されますが、その機能をもう少し便利にしたものです。
+詳細は、README.txtを参照してください。</p><h2>Dependencies</h2>
+<p> 　以下のような環境が必要です。他にもあるかもしれませんが、一般的なユーザなら多分大丈夫でしょう。
+
+ ・秀丸エディッタ Ver 8以上が動作する。
+ ・COM・秀丸エディッタ同梱のDLL・cmd.exeなどの呼び出し・実行できる権限がある。
+ ・マクロ本体が存在するフォルダ及びそこに存在するファイルに対して、読み取り・実行・書き込みなどができる権限がある。
+
+ ・「フォルダ情報を記載したファイル」を、マクロ(というか秀丸エディッタ）から読み出すことができる権限がある。
+</p>
+<h2>Install</h2>
+<p> ・他の秀丸エディッタ用のマクロと同様です。
+ 　配布ファイルに含まれる全てのファイルを、同じフォルダに展開してください。
+ ・「フォルダ情報を記載したファイル」を必要に応じて作ってください。
+ 　サンプルは、配布ファイル同梱のmount.info.sampleを参照してください。
+ 　自動で作るには、cygwinをインストールしてから、「echo [mount] > mount.info; mount | sed -re 's/^([^\/]+) on (\/[^ ]+) .+/ = /g' >> mount.info」みたいな感じで。
+
+ ・使い方、設定方法は、同梱のマニュアル<SaveasEx.mac.txt>をご覧ください。
+
+ ・バージョンアップ時の注意
+ 　ユーザ設定は、マクロ自体に書き込みます。従って、マクロをインストールするたびに設定し直す必要があります。
+
+ ・アンインストール時のお知らせ
+ 　レジストリには書き込んでいません。また、マクロと同じフォルダ以外にはファイルを作りません。
+</p>
+<h2>License</h2>
+<p> 著作権は、私 "たけとり"、"taketori"、及び "x10d.jp" が2009年から保有しています。
+ ライセンスは、いわゆる「修正BSD」です。
+詳細は、README.txtを参照してください。</p>
+<h2>Authors</h2>
+<p>taketori (dm1 at x10d.jp)<br/><br/>      </p>
+<h2>Contact</h2>
+<p>taketori at x10d.jp (dm1 at x10d.jp)<br/>      </p>
+
+
+    <h2>Download</h2>
+    <p>
+      You can download this project in either
+      <a href="http://github.com/taketori/SaveasEx.mac/zipball/master">zip</a> or
+      <a href="http://github.com/taketori/SaveasEx.mac/tarball/master">tar</a> formats.
+    </p>
+    <p>You can also clone the project with <a href="http://git-scm.com">Git</a>
+      by running:
+      <pre>$ git clone git://github.com/taketori/SaveasEx.mac</pre>
+    </p>
+
+    <div class="footer">
+      get the source code on GitHub : <a href="http://github.com/taketori/SaveasEx.mac">taketori/SaveasEx.mac</a>
+    </div>
+
+  </div>
+
+  
+</body>
+</html>

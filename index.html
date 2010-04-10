@@ -10,20 +10,20 @@
 	<style type="text/css">
 		body {
   		margin-top: 1.0em;
-  		background-color: #1429d1;
+  		background-color: #d2e6d2;
 		  font-family: "Helvetica,Arial,FreeSans";
-  		color: #ffffff;
+  		color: #000000;
     }
     #container {
       margin: 0 auto;
       width: 700px;
     }
-		h1 { font-size: 3.8em; color: #ebd62e; margin-bottom: 3px; }
+		h1 { font-size: 3.8em; color: #498749; margin-bottom: 3px; }
 		h1 .small { font-size: 0.4em; }
 		h1 a { text-decoration: none }
-		h2 { font-size: 1.5em; color: #ebd62e; }
-    h3 { text-align: center; color: #ebd62e; }
-    a { color: #ebd62e; }
+		h2 { font-size: 1.5em; color: #498749; }
+    h3 { text-align: center; color: #498749; }
+    a { color: #328972; }
     .description { font-size: 1.2em; margin-bottom: 30px; margin-top: 30px; font-style: italic;}
     .download { float: right; }
 		pre { background: #000; color: #fff; padding: 15px;}
@@ -33,8 +33,18 @@
 	
 </head>
 
+<script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+try {
+var pageTracker = _gat._getTracker("UA-15769145-1");
+pageTracker._trackPageview();
+} catch(err) {}</script>
+
 <body>
-  <a href="http://github.com/taketori/SaveasEx.mac"><img style="position: absolute; top: 0; right: 0; border: 0;" src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub" /></a>
+  <a href="http://github.com/taketori/SaveasEx.mac"><img style="position: absolute; top: 0; right: 0; border: 0;" src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub" />Download</a>
 
   <div id="container">
 
@@ -51,42 +61,52 @@
     <div class="description">
       「名前を付けて保存」をちょっと便利にしたマクロ
     </div>
-
-    <p> 　秀丸エディッタ用のマクロです。
- 　ファイルの最初の方に記載された、ファイル名と思わしき文字列を利用して「名前を付けて保存」します。
- 　秀丸の「名前を付けて保存」では、ファイル名候補としてファイル1行目の文字列が表示されますが、その機能をもう少し便利にしたものです。
-詳細は、README.txtを参照してください。</p><h2>Dependencies</h2>
-<p> 　以下のような環境が必要です。他にもあるかもしれませんが、一般的なユーザなら多分大丈夫でしょう。
-
- ・秀丸エディッタ Ver 8以上が動作する。
- ・COM・秀丸エディッタ同梱のDLL・cmd.exeなどの呼び出し・実行できる権限がある。
- ・マクロ本体が存在するフォルダ及びそこに存在するファイルに対して、読み取り・実行・書き込みなどができる権限がある。
-
- ・「フォルダ情報を記載したファイル」を、マクロ(というか秀丸エディッタ）から読み出すことができる権限がある。
+    <p><img src="./SaveasEx.png" alt="Discription Image"/> <p>　秀丸エディッタ用のマクロです。
+ <p>　ファイルの最初の方に記載された、ファイル名と思わしき文字列を利用して「名前を付けて保存」します。
+ <p>　秀丸の「名前を付けて保存」では、ファイル名候補としてファイル1行目の文字列が表示されますが、その機能をもう少し便利にしたものです。<br>
+詳細は、<a href="http://github.com/taketori/SaveasEx.mac/">README.txt</a>を参照してください。</p>
+<h2>Dependencies</h2>
+<p> 以下のような環境が必要です。他にもあるかもしれませんが、一般的なユーザなら多分大丈夫でしょう。<br>
+<br>
+ 秀丸エディッタ Ver 8以上が動作する。<br>
+ COM・秀丸エディッタ同梱のDLL・cmd.exeなどの呼び出し・実行できる権限がある。<br>
+ マクロ本体が存在するフォルダ及びそこに存在するファイルに対して、読み取り・実行・書き込みなどができる権限がある。<br>
+<br>
+ 「フォルダ情報を記載したファイル」を、マクロ(というか秀丸エディッタ）から読み出すことができる権限がある。<br>
 </p>
 <h2>Install</h2>
-<p> ・他の秀丸エディッタ用のマクロと同様です。
- 　配布ファイルに含まれる全てのファイルを、同じフォルダに展開してください。
- ・「フォルダ情報を記載したファイル」を必要に応じて作ってください。
- 　サンプルは、配布ファイル同梱のmount.info.sampleを参照してください。
- 　自動で作るには、cygwinをインストールしてから、「echo [mount] > mount.info; mount | sed -re 's/^([^\/]+) on (\/[^ ]+) .+/ = /g' >> mount.info」みたいな感じで。
+ <strong>・他の秀丸エディッタ用のマクロと同様です。</strong>
+ <br>　配布ファイルに含まれる全てのファイルを、同じフォルダに展開してください。
+<p><strong> ・「フォルダ情報を記載したファイル」を必要に応じて作ってください。</strong>
+ <br>　サンプルは、配布ファイル同梱のmount.info.sampleを参照してください。
+ <br>　自動で作るには、cygwinをインストールしてから、「echo [mount] > mount.info; mount | sed -re 's/^([^\/]+) on (\/[^ ]+) .+/ = /g' >> mount.info」みたいな感じで。
 
- ・使い方、設定方法は、同梱のマニュアル<SaveasEx.mac.txt>をご覧ください。
+ <p><strong>・使い方、設定方法は、同梱のマニュアルSaveasEx.mac.txtをご覧ください。</strong>
 
- ・バージョンアップ時の注意
- 　ユーザ設定は、マクロ自体に書き込みます。従って、マクロをインストールするたびに設定し直す必要があります。
+ <h3>・バージョンアップ時の注意</h3>
+ <p>　ユーザ設定は、マクロ自体に書き込みます。従って、マクロをインストールするたびに設定し直す必要があります。
 
- ・アンインストール時のお知らせ
- 　レジストリには書き込んでいません。また、マクロと同じフォルダ以外にはファイルを作りません。
+ <h3>・アンインストール時のお知らせ</h3>
+ <p>　レジストリには書き込んでいません。また、マクロと同じフォルダ以外にはファイルを作りません。
 </p>
 <h2>License</h2>
-<p> 著作権は、私 "たけとり"、"taketori"、及び "x10d.jp" が2009年から保有しています。
- ライセンスは、いわゆる「修正BSD」です。
-詳細は、README.txtを参照してください。</p>
+<p> 著作権は、私 "たけとり"、"taketori"、及び "x10d.jp" が2009年から保有しています。<br>
+ ライセンスは、いわゆる「修正BSD」です。<br>
+詳細は、<a href="http://github.com/taketori/SaveasEx.mac/">README.txt</a>を参照してください。</p>
 <h2>Authors</h2>
 <p>taketori (dm1 at x10d.jp)<br/><br/>      </p>
 <h2>Contact</h2>
-<p>taketori at x10d.jp (dm1 at x10d.jp)<br/>      </p>
+<p>メールや掲示板でお問い合わせの際は、本マクロについてであることがわかるように、題名にマクロ名を併記してください。
+
+ <p>・メール<br>
+   src＠x10d.jp (＠を半角に変更してから送信してください。)
+
+ <p>・掲示板: コミュニテックス「4. 公開マクロ サポート会議室（秀丸エディタ関連）」<br>
+   http://www.maruo.co.jp/turukame/4/index.html
+
+ <p>・githubのレポジトリ<br>
+   http://github.com/taketori/SaveasEx.mac/<br>
+   Issuesもどうぞ。<br/>      </p>
 
 
     <h2>Download</h2>
